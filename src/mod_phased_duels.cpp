@@ -169,29 +169,7 @@ public:
     }
 };
 
-class PhasedDuelsWorld : public WorldScript
-{
-public:
-	PhasedDuelsWorld() : WorldScript("PhasedDuelsWorld") { }
-
- void OnBeforeConfigLoad(bool reload) override
- {
-     if (!reload) {
-         std::string conf_path = _CONF_DIR;
-         std::string cfg_file = conf_path + "/mod_phased_duels.conf";
-#ifdef WIN32
-         cfg_file = "mod_phased_duels.conf";
-#endif
-         std::string cfg_def_file = cfg_file + ".dist";
-         sConfigMgr->LoadMore(cfg_def_file.c_str());
-
-         sConfigMgr->LoadMore(cfg_file.c_str());
-     }
- }
-};
-
 void AddPhasedDuelsScripts()
 {
-    new PhasedDuelsWorld();
     new PhasedDueling();
 }
