@@ -45,7 +45,7 @@ public:
                 return;
 
             // Duel flag is used as duel center point
-            GameObject* go = map->GetGameObject(firstplayer->GetUInt64Value(PLAYER_DUEL_ARBITER));
+            GameObject* go = map->GetGameObject(firstplayer->GetGuidValue(PLAYER_DUEL_ARBITER));
             if (!go)
                 return;
 
