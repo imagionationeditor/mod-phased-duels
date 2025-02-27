@@ -16,15 +16,13 @@ uint32 PhasedDueling::getNormalPhase(Player* player) const
     return PHASEMASK_NORMAL;
 }
 
-void PhasedDueling::OnLogin(Player* player)
+void PhasedDueling::OnPlayerLogin(Player* player)
 {
     if (sConfigMgr->GetOption<bool>("PhasedDuelsAnnounce.Enable", true))
-    {
         ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00PhasedDuels |rmodule.");
-    }
 }
 
-void PhasedDueling::OnDuelStart(Player* firstplayer, Player* secondplayer)
+void PhasedDueling::OnPlayerDuelStart(Player* firstplayer, Player* secondplayer)
 {
     if (sConfigMgr->GetOption<bool>("PhasedDuels.Enable", true))
     {
@@ -74,7 +72,7 @@ void PhasedDueling::OnDuelStart(Player* firstplayer, Player* secondplayer)
     }
 }
 
-void PhasedDueling::OnDuelEnd(Player* firstplayer, Player* secondplayer, DuelCompleteType /*type*/)
+void PhasedDueling::OnPlayerDuelEnd(Player* firstplayer, Player* secondplayer, DuelCompleteType /*type*/)
 {
     if (sConfigMgr->GetOption<bool>("PhasedDueling.Enable", true))
     {
