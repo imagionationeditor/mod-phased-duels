@@ -10,7 +10,7 @@ PhasedDuels.Enable = 1
 
 # Announce Module (1: true | 0: false)
 
-PhasedDuelsAnnounce.Enable = 1
+PhasedDuelsAnnounce.Enable = 0
 
 ###################################################################################################
 #
@@ -29,6 +29,24 @@ PhasedDuelsAnnounce.Enable = 1
 # ReviveOrRestorPetHealth.Enable
 #	Revive dead pets or set full health after duel is completed. ( 1: true | 0: false) 
 #
+# DuelRanking.Enable
+#	Enable duel ranking system with statistics tracking (1: true | 0: false)
+#
+# DuelRanking.Announce
+#	Announce ONLY when top 3 server rankings change positions (1: true | 0: false)
+#
+# DuelRanking.PointsGain
+#	Maximum points a player can gain from winning a duel (K-factor for ELO calculation)
+#	Range: 10-50, Default: 32
+#
+# DuelRanking.PointsLoss
+#	Maximum points a player can lose from losing a duel (K-factor for ELO calculation)  
+#	Range: 10-50, Default: 32
+#
+# ADMIN COMMANDS:
+#	.duelranking reset - Manually reset all duel rankings (Administrator only)
+#	This command will set all player ratings to 0 and announce to all players
+#
 ###################################################################################################
 
 SetMaxHP.Enable = 1
@@ -36,4 +54,8 @@ ResetCoolDowns.Enable = 1
 RestorePower.Enable = 1
 RetorePowerForRogueOrWarrior.Enable = 1
 ReviveOrRestorPetHealth.Enable = 1
+DuelRanking.Enable = 1
+DuelRanking.Announce = 1
+DuelRanking.PointsGain = 32
+DuelRanking.PointsLoss = 32
 
