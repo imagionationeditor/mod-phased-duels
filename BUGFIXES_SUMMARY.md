@@ -121,6 +121,44 @@ if (sConfigMgr->GetOption<bool>("PhasedDuels.Enable", true))
 
 ---
 
+## 🟡 Race Condition Fixed
+
+### 8. Race Condition Between Execute and Query
+**File:** `src/mod_phased_duels.cpp` (Lines 116-129)
+
+**Problem:** `CharacterDatabase.Execute()` may be asynchronous in some AzerothCore builds, adding queries to a queue. When `CharacterDatabase.Query()` immediately runs afterward to get `newTop3`, the UPDATE might not have committed yet, causing stale data to be read. This resulted in ranking change announcements being delayed or incorrect under high concurrency.
+
+**Fix:** Changed from `Execute()` to `DirectExecute()` for synchronous execution:
+```cpp
+// Update winner stats (using DirectExecute to ensure synchronous execution)
+CharacterDatabase.DirectExecute("INSERT INTO duel_statistics ...");
+
+// Update loser stats (using DirectExecute to ensure synchronous execution)
+CharacterDatabase.DirectExecute("INSERT INTO duel_statistics ...");
+```
+
+This guarantees that database updates are fully committed before querying the new top 3 rankings.
+
+---
+
+## 🛠️ Additional Fixes
+
+### 9. Corrupted .gitignore File
+**File:** `.gitignore`
+
+**Problem:** The file contained markdown backticks (```) as actual content, likely from copying code blocks. It also had irrelevant entries for Python/Node.js projects (`venv/`, `__pycache__/`, `.pytest_cache/`, `node_modules/`) instead of C++/AzerothCore-specific patterns.
+
+**Fix:** 
+- Removed markdown backticks from beginning and end
+- Replaced with proper C++/AzerothCore gitignore patterns:
+  - Build directories (`build/`, `target/`, `bin/`, `lib/`)
+  - CMake files (`CMakeCache.txt`, `CMakeFiles/`, `Makefile`)
+  - AzerothCore module build path (`modules/mod_phased_duels/build/`)
+  - Patch files (`*.orig`, `*.rej`)
+  - Kept relevant IDE and system files
+
+---
+
 ## 📋 Configuration Note
 
 **Typo in Config Key:** `RetorePowerForRogueOrWarrior.Enable` (should be "Restore")
@@ -139,13 +177,17 @@ After applying these fixes, test the following scenarios:
 4. **Rogue/Warrior Power:** Disable `RetorePowerForRogueOrWarrior.Enable`, duel as Rogue vs Hunter - Hunter's pet should still be healed
 5. **Single Pet:** Hunter (with pet) vs Mage (no pet) - Hunter's pet should be healed/revived
 6. **Config Disable:** Set `PhasedDuels.Enable = 0` - phased dueling should be fully disabled
+7. **Race Condition:** Run multiple simultaneous duels under high load - ranking announcements should be accurate and immediate
+8. **.gitignore Verification:** Run `git status` - should not show build artifacts or irrelevant files
 
 ---
 
 ## Files Modified
 
-- `/workspace/src/mod_phased_duels.cpp` - All bug fixes
+- `/workspace/src/mod_phased_duels.cpp` - All bug fixes including race condition fix
 - `/workspace/conf/mod_phased_duels.conf.dist` - Added documentation note about typo
+- `/workspace/.gitignore` - Fixed corrupted file with proper C++/AzerothCore patterns
+- `/workspace/BUGFIXES_SUMMARY.md` - This comprehensive documentation
 
 ---
 

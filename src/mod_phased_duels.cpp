@@ -112,16 +112,16 @@ void UpdateDuelStatistics(Player* winner, Player* loser)
         } while (oldTop3Result->NextRow());
     }
 
-    // Update winner stats
-    CharacterDatabase.Execute("INSERT INTO duel_statistics (player_guid, total_duels, wins, losses, rating) "
+    // Update winner stats (using DirectExecute to ensure synchronous execution)
+    CharacterDatabase.DirectExecute("INSERT INTO duel_statistics (player_guid, total_duels, wins, losses, rating) "
                              "VALUES ({}, {}, {}, {}, {}) "
                              "ON DUPLICATE KEY UPDATE "
                              "total_duels = {}, wins = {}, losses = {}, rating = {}, last_duel_time = NOW()",
                              winnerGuid, winnerDuels + 1, winnerWins + 1, winnerLosses, newWinnerRating,
                              winnerDuels + 1, winnerWins + 1, winnerLosses, newWinnerRating);
 
-    // Update loser stats
-    CharacterDatabase.Execute("INSERT INTO duel_statistics (player_guid, total_duels, wins, losses, rating) "
+    // Update loser stats (using DirectExecute to ensure synchronous execution)
+    CharacterDatabase.DirectExecute("INSERT INTO duel_statistics (player_guid, total_duels, wins, losses, rating) "
                              "VALUES ({}, {}, {}, {}, {}) "
                              "ON DUPLICATE KEY UPDATE "
                              "total_duels = {}, wins = {}, losses = {}, rating = {}, last_duel_time = NOW()",
