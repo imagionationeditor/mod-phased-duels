@@ -148,7 +148,6 @@ void UpdateDuelStatistics(Player* winner, Player* loser)
         for (size_t i = 0; i < 3 && i < newTop3.size(); ++i)
         {
             bool rankChanged = false;
-            std::string rankName = (i == 0) ? "First" : (i == 1) ? "Second" : "Third";
             std::string rankNumber = std::to_string(i + 1);
 
             // Check if this position changed

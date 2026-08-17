@@ -121,9 +121,22 @@ if (sConfigMgr->GetOption<bool>("PhasedDuels.Enable", true))
 
 ---
 
-## 🟡 Race Condition Fixed
+## 🟡 Minor Issues Fixed
 
-### 8. Race Condition Between Execute and Query
+### 9. Unused Variable Warning
+**File:** `src/mod_phased_duels.cpp` (Line 151)
+
+**Problem:** Variable `rankName` was defined but never used, which would cause a compiler warning (`-Wunused-variable`).
+
+**Fix:** Removed the unused variable declaration:
+```cpp
+// Removed: std::string rankName = (i == 0) ? "First" : (i == 1) ? "Second" : "Third";
+std::string rankNumber = std::to_string(i + 1); // Only this is used
+```
+
+---
+
+### 10. Race Condition Between Execute and Query
 **File:** `src/mod_phased_duels.cpp` (Lines 116-129)
 
 **Problem:** `CharacterDatabase.Execute()` may be asynchronous in some AzerothCore builds, adding queries to a queue. When `CharacterDatabase.Query()` immediately runs afterward to get `newTop3`, the UPDATE might not have committed yet, causing stale data to be read. This resulted in ranking change announcements being delayed or incorrect under high concurrency.
@@ -143,7 +156,7 @@ This guarantees that database updates are fully committed before querying the ne
 
 ## 🛠️ Additional Fixes
 
-### 9. Corrupted .gitignore File
+### 11. Corrupted .gitignore File
 **File:** `.gitignore`
 
 **Problem:** The file contained markdown backticks (```) as actual content, likely from copying code blocks. It also had irrelevant entries for Python/Node.js projects (`venv/`, `__pycache__/`, `.pytest_cache/`, `node_modules/`) instead of C++/AzerothCore-specific patterns.
@@ -178,13 +191,14 @@ After applying these fixes, test the following scenarios:
 5. **Single Pet:** Hunter (with pet) vs Mage (no pet) - Hunter's pet should be healed/revived
 6. **Config Disable:** Set `PhasedDuels.Enable = 0` - phased dueling should be fully disabled
 7. **Race Condition:** Run multiple simultaneous duels under high load - ranking announcements should be accurate and immediate
-8. **.gitignore Verification:** Run `git status` - should not show build artifacts or irrelevant files
+8. **.gitignore Verification:** Run `git status` - should show clean working directory after build
+9. **Compiler Warnings:** Build the module - should have no `-Wunused-variable` warnings
 
 ---
 
 ## Files Modified
 
-- `/workspace/src/mod_phased_duels.cpp` - All bug fixes including race condition fix
+- `/workspace/src/mod_phased_duels.cpp` - All bug fixes including race condition fix and unused variable removal
 - `/workspace/conf/mod_phased_duels.conf.dist` - Added documentation note about typo
 - `/workspace/.gitignore` - Fixed corrupted file with proper C++/AzerothCore patterns
 - `/workspace/BUGFIXES_SUMMARY.md` - This comprehensive documentation
