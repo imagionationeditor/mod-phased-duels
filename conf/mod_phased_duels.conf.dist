@@ -25,6 +25,7 @@ PhasedDuelsAnnounce.Enable = 0
 #
 # RetorePowerForRogueOrWarrior.Enable
 #	Set Rogues and warrior to max after duel has completed this requires RestorePower to be enabled. (1: true | 0: false)
+#       Note: There is a typo in the config key name ("Retore" instead of "Restore"), but it's kept for backward compatibility.
 #
 # ReviveOrRestorPetHealth.Enable
 #	Revive dead pets or set full health after duel is completed. ( 1: true | 0: false) 

@@ -1,4 +1,5 @@
 #include "mod_phased_duels.h"
+#include <cmath>
 
 // Add command script for duel ranking reset
 class DuelRankingCommands : public CommandScript
@@ -40,8 +41,9 @@ public:
         // Confirm to the admin
         handler->SendSysMessage("All duel rankings have been successfully reset!");
         
-        // Log the action
-        LOG_WARN("module.phasedduels", "Duel rankings manually reset by admin: {}", handler->GetSession()->GetPlayerName());
+        // Log the action (handle console execution safely)
+        std::string adminName = handler->GetSession() ? handler->GetSession()->GetPlayerName() : "Console";
+        LOG_WARN("module.phasedduels", "Duel rankings manually reset by admin: {}", adminName);
         
         return true;
     }
@@ -89,8 +91,26 @@ void UpdateDuelStatistics(Player* winner, Player* loser)
     uint32 kFactorGain = sConfigMgr->GetOption<uint32>("DuelRanking.PointsGain", 32);
     uint32 kFactorLoss = sConfigMgr->GetOption<uint32>("DuelRanking.PointsLoss", 32);
     
-    uint32 newWinnerRating = winnerRating + kFactorGain * (1 - expectedWinner);
-    uint32 newLoserRating = loserRating + kFactorLoss * (0 - expectedLoser);
+    // Use int32 to prevent underflow when rating becomes negative
+    int32 newWinnerRating = static_cast<int32>(winnerRating) + static_cast<int32>(kFactorGain * (1.0f - expectedWinner));
+    int32 newLoserRating = static_cast<int32>(loserRating) + static_cast<int32>(kFactorLoss * (0.0f - expectedLoser));
+    
+    // Clamp ratings to minimum 0 to prevent negative values
+    newWinnerRating = std::max(0, newWinnerRating);
+    newLoserRating = std::max(0, newLoserRating);
+
+    // Get current top 3 rankings BEFORE the duel update (must be before database UPDATE)
+    QueryResult oldTop3Result = CharacterDatabase.Query("SELECT player_guid FROM duel_statistics ORDER BY rating DESC LIMIT 3");
+    std::vector<uint32> oldTop3;
+    
+    if (oldTop3Result)
+    {
+        do
+        {
+            Field* fields = oldTop3Result->Fetch();
+            oldTop3.push_back(fields[0].Get<uint32>());
+        } while (oldTop3Result->NextRow());
+    }
 
     // Update winner stats
     CharacterDatabase.Execute("INSERT INTO duel_statistics (player_guid, total_duels, wins, losses, rating) "
@@ -111,21 +131,6 @@ void UpdateDuelStatistics(Player* winner, Player* loser)
     // Check for ranking changes in top 3 before announcing
     if (sConfigMgr->GetOption<bool>("DuelRanking.Announce", true))
     {
-        // Get current top 3 rankings BEFORE the duel update
-        QueryResult oldTop3Result = CharacterDatabase.Query("SELECT player_guid FROM duel_statistics ORDER BY rating DESC LIMIT 3");
-        std::vector<uint32> oldTop3;
-        
-        if (oldTop3Result)
-        {
-            do
-            {
-                Field* fields = oldTop3Result->Fetch();
-                oldTop3.push_back(fields[0].Get<uint32>());
-            } while (oldTop3Result->NextRow());
-        }
-
-        // Update database first (this was done above)
-        
         // Get NEW top 3 rankings AFTER the duel update
         QueryResult newTop3Result = CharacterDatabase.Query("SELECT player_guid FROM duel_statistics ORDER BY rating DESC LIMIT 3");
         std::vector<uint32> newTop3;
@@ -295,7 +300,7 @@ void PhasedDueling::OnPlayerDuelEnd(Player* firstplayer, Player* secondplayer, D
         UpdateDuelStatistics(secondplayer, firstplayer); // secondplayer won (firstplayer fled)
     }
 
-    if (sConfigMgr->GetOption<bool>("PhasedDueling.Enable", true))
+    if (sConfigMgr->GetOption<bool>("PhasedDuels.Enable", true))
     {
         // Phase players, dont update visibility yet
         firstplayer->SetPhaseMask(getNormalPhase(firstplayer), false);
@@ -318,17 +323,16 @@ void PhasedDueling::OnPlayerDuelEnd(Player* firstplayer, Player* secondplayer, D
 
         if (sConfigMgr->GetOption<bool>("RestorePower.Enable", true))
         {
-            if (!sConfigMgr->GetOption<bool>("RetorePowerForRogueOrWarrior.Enable", true))
+            // Check if we should skip power restoration for Rogue/Warrior
+            bool skipRogueWarrior = !sConfigMgr->GetOption<bool>("RetorePowerForRogueOrWarrior.Enable", true) &&
+                (firstplayer->getClass() == CLASS_ROGUE || firstplayer->getClass() == CLASS_WARRIOR ||
+                 secondplayer->getClass() == CLASS_ROGUE || secondplayer->getClass() == CLASS_WARRIOR);
+
+            if (!skipRogueWarrior)
             {
-                if (firstplayer->getClass() == CLASS_ROGUE || firstplayer->getClass() == CLASS_WARRIOR)
-                    return;
-
-                if (secondplayer->getClass() == CLASS_ROGUE || secondplayer->getClass() == CLASS_WARRIOR)
-                    return;
+                firstplayer->SetPower(firstplayer->getPowerType(), firstplayer->GetMaxPower(firstplayer->getPowerType()));
+                secondplayer->SetPower(secondplayer->getPowerType(), secondplayer->GetMaxPower(secondplayer->getPowerType()));
             }
-
-            firstplayer->SetPower(firstplayer->getPowerType(), firstplayer->GetMaxPower(firstplayer->getPowerType()));
-            secondplayer->SetPower(secondplayer->getPowerType(), secondplayer->GetMaxPower(secondplayer->getPowerType()));
         }
 
         if (sConfigMgr->GetOption<bool>("ReviveOrRestorPetHealth.Enable", true))
@@ -336,22 +340,29 @@ void PhasedDueling::OnPlayerDuelEnd(Player* firstplayer, Player* secondplayer, D
             Pet* pet1 = firstplayer->GetPet();
             Pet* pet2 = secondplayer->GetPet();
 
-            if (!pet1 || !pet2)
-                return;
-
-            if (!pet1->IsAlive() || !pet2->IsAlive())
+            // Handle pet1 independently if it exists
+            if (pet1)
             {
-                if (firstplayer->getClass() == CLASS_HUNTER || secondplayer->getClass() == CLASS_HUNTER)
+                if (!pet1->IsAlive())
                 {
-                    pet1->SetPower(POWER_HAPPINESS, pet1->GetMaxPower(POWER_HAPPINESS));
-                    pet2->SetPower(POWER_HAPPINESS, pet2->GetMaxPower(POWER_HAPPINESS));
+                    if (firstplayer->getClass() == CLASS_HUNTER)
+                        pet1->SetPower(POWER_HAPPINESS, pet1->GetMaxPower(POWER_HAPPINESS));
+                    pet1->setDeathState(DeathState::Alive);
                 }
-                pet1->setDeathState(DeathState::Alive);
-                pet2->setDeathState(DeathState::Alive);
+                pet1->SetHealth(pet1->GetMaxHealth());
             }
 
-            pet1->SetHealth(pet1->GetMaxHealth());
-            pet2->SetHealth(pet2->GetMaxHealth());
+            // Handle pet2 independently if it exists
+            if (pet2)
+            {
+                if (!pet2->IsAlive())
+                {
+                    if (secondplayer->getClass() == CLASS_HUNTER)
+                        pet2->SetPower(POWER_HAPPINESS, pet2->GetMaxPower(POWER_HAPPINESS));
+                    pet2->setDeathState(DeathState::Alive);
+                }
+                pet2->SetHealth(pet2->GetMaxHealth());
+            }
         }
     }
 }
